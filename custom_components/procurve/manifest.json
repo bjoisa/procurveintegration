@@ -3,10 +3,10 @@
   "name": "HP/Aruba ProCurve",
   "codeowners": ["@bjoisa"],
   "config_flow": true,
-  "documentation": "https://github.com/bjoisaprocurve-ha",
+  "documentation": "https://github.com/bjoisa/procurveintegration",
   "integration_type": "hub",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/bjoisa/procurve-ha/issues",
+  "issue_tracker": "https://github.com/bjoisa/procurveintegration/issues",
   "requirements": [],
   "single_config_entry": false,
   "version": "1.0.0"
