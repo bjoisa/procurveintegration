@@ -38,6 +38,7 @@ SYSTEM_SENSORS: tuple[ProCurveSensorDescription, ...] = (
         translation_key="cpu_percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
         value_fn=lambda d: d.system_info.cpu_percent,
     ),
     ProCurveSensorDescription(
@@ -45,6 +46,7 @@ SYSTEM_SENSORS: tuple[ProCurveSensorDescription, ...] = (
         translation_key="memory_percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
         value_fn=lambda d: d.system_info.memory_percent,
     ),
     ProCurveSensorDescription(

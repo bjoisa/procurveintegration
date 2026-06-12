@@ -401,6 +401,7 @@ class ProCurveApiClient:
         data = await self._get("/poe", optional=True)
         if data is None:
             return (0.0, 0.0)
+        _LOGGER.debug("PoE status response: %s", data)
         used = data.get("secd_poe_power_used", 0)
         budget = data.get("secd_poe_power_available", 0)
         return float(used), float(budget)
@@ -410,11 +411,12 @@ class ProCurveApiClient:
         data = await self._get("/poe/ports", optional=True)
         if data is None:
             return []
+        _LOGGER.debug("PoE ports response: %s", data)
         return [
             PoePortInfo(
                 id=p["port_id"],
                 is_poe_enabled=p.get("is_poe_enabled", False),
-                power_draw_watts=float(p.get("poe_power_draws_watts", 0.0)),
+                power_draw_watts=float(p.get("poe_power_draw_watts", 0.0)),
                 poe_status=p.get("poe_detection_status", "Unknown"),
             )
             for p in data.get("port_poe_element", [])
