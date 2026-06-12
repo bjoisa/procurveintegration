@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Koble til HP/Aruba ProCurve-svitsj",
+        "data": {
+          "host": "Vert / IP-adresse",
+          "port": "HTTPS-port",
+          "username": "Brukernavn",
+          "password": "Passord",
+          "verify_ssl": "Verifiser SSL-sertifikat",
+          "scan_interval": "Pollingsintervall (sekunder)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan ikke koble til svitsjen. Sjekk vert og port.",
+      "invalid_auth": "Ugyldig brukernavn eller passord.",
+      "unknown": "Uventet feil. Sjekk loggene."
+    },
+    "abort": {
+      "already_configured": "Denne svitsjen er allerede konfigurert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ProCurve-alternativer",
+        "data": {
+          "scan_interval": "Pollingsintervall (sekunder)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cpu_percent": {"name": "CPU-bruk"},
+      "memory_percent": {"name": "Minnebruk"},
+      "uptime": {"name": "Oppetid"},
+      "total_poe_watts": {"name": "Totalt PoE-forbruk"},
+      "firmware_version": {"name": "Fastvareversjon"},
+      "temperature": {"name": "Temperatur"}
+    },
+    "button": {
+      "restart": {"name": "Start på nytt"}
+    }
+  }
+}

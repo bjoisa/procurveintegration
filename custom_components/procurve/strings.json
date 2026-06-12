@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to HP/Aruba ProCurve switch",
+        "data": {
+          "host": "Host / IP address",
+          "port": "HTTPS port",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL certificate",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the switch. Check host and port.",
+      "invalid_auth": "Invalid username or password.",
+      "unknown": "Unexpected error. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This switch is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ProCurve options",
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cpu_percent": {"name": "CPU Usage"},
+      "memory_percent": {"name": "Memory Usage"},
+      "uptime": {"name": "Uptime"},
+      "total_poe_watts": {"name": "Total PoE Power"},
+      "firmware_version": {"name": "Firmware Version"},
+      "temperature": {"name": "Temperature"}
+    },
+    "button": {
+      "restart": {"name": "Restart"}
+    }
+  }
+}
