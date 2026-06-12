@@ -409,10 +409,16 @@ class ProCurveApiClient:
         ]
 
     async def set_port_enabled(self, port_id: str, enabled: bool) -> None:
-        await self._put(f"/ports/{port_id}", {"is_port_enabled": enabled})
+        current = await self._get(f"/ports/{port_id}")
+        current.pop("uri", None)
+        current["is_port_enabled"] = enabled
+        await self._put(f"/ports/{port_id}", current)
 
     async def set_poe_enabled(self, port_id: str, enabled: bool) -> None:
-        await self._put(f"/poe/ports/{port_id}", {"is_poe_enabled": enabled})
+        current = await self._get(f"/poe/ports/{port_id}")
+        current.pop("uri", None)
+        current["is_poe_enabled"] = enabled
+        await self._put(f"/poe/ports/{port_id}", current)
 
     async def reboot(self) -> None:
         await self._post("/system/reboot")
