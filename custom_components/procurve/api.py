@@ -146,11 +146,17 @@ class ProCurveApiClient:
                 ) as resp:
                     if resp.status == 401:
                         raise InvalidAuth("Invalid username or password")
-                    if resp.status in (503, 404):
+                    if resp.status == 404:
                         _LOGGER.debug(
-                            "REST API %s not available (HTTP %s), trying next version",
+                            "REST API %s not found (HTTP 404), trying next version",
                             version,
-                            resp.status,
+                        )
+                        last_statuses[version] = resp.status
+                        continue
+                    if resp.status == 503:
+                        _LOGGER.debug(
+                            "REST API %s unavailable (HTTP 503), trying next version",
+                            version,
                         )
                         last_statuses[version] = resp.status
                         continue
@@ -166,12 +172,19 @@ class ProCurveApiClient:
                 raise CannotConnect(f"Cannot reach {self._host}:{self._port}") from err
             except asyncio.TimeoutError as err:
                 raise CannotConnect(f"Timeout connecting to {self._host}") from err
+        if last_statuses and all(s == 503 for s in last_statuses.values()):
+            raise CannotConnect(
+                f"REST API service unavailable on {self._host} (HTTP 503 — possibly a concurrent session limit)"
+            )
         raise ApiError(
             f"No supported REST API version found on {self._host}. Tried: {last_statuses}"
         )
 
-    async def _get(self, path: str) -> Any:
-        """Perform an authenticated GET request, re-authenticating once on 401."""
+    async def _get(self, path: str, optional: bool = False) -> Any:
+        """Perform an authenticated GET request, re-authenticating once on 401.
+
+        If optional is True, returns None on 404 instead of raising ApiError.
+        """
         if not self._cookie:
             await self.authenticate()
         session = await self._get_session()
@@ -187,6 +200,8 @@ class ProCurveApiClient:
                         self._cookie = None
                         await self.authenticate()
                         continue
+                    if resp.status == 404 and optional:
+                        return None
                     if resp.status != 200:
                         raise ApiError(f"GET {path} returned {resp.status}")
                     return await resp.json()
@@ -325,14 +340,19 @@ class ProCurveApiClient:
         ]
 
     async def get_poe_status(self) -> tuple[float, float]:
-        """Return (total_watts_used, budget_watts)."""
-        data = await self._get("/poe")
+        """Return (total_watts_used, budget_watts), or (0.0, 0.0) if PoE REST endpoint is absent."""
+        data = await self._get("/poe", optional=True)
+        if data is None:
+            return (0.0, 0.0)
         used = data.get("secd_poe_power_used", 0)
         budget = data.get("secd_poe_power_available", 0)
         return float(used), float(budget)
 
     async def get_poe_ports(self) -> list[PoePortInfo]:
-        data = await self._get("/poe/ports")
+        """Return PoE port list, or [] if PoE REST endpoint is absent."""
+        data = await self._get("/poe/ports", optional=True)
+        if data is None:
+            return []
         return [
             PoePortInfo(
                 id=p["port_id"],
