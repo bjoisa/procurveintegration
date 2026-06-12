@@ -40,6 +40,7 @@ class PortStats:
     id: str
     rx_bytes: int = 0
     tx_bytes: int = 0
+    speed_mbps: int | None = None
 
 
 @dataclass
@@ -268,16 +269,24 @@ class ProCurveApiClient:
     async def get_system_info(self) -> SystemInfo:
         data = await self._get("/system")
         _LOGGER.debug("Raw /system response: %s", data)
-        _total_mem = data.get("total_memory_in_bytes", 0)
-        _free_mem = data.get("free_memory_in_bytes", 0)
+        mod_data = await self._get("/management-module", optional=True)
+        _LOGGER.debug("Raw /management-module response: %s", mod_data)
+        mod = {}
+        if isinstance(mod_data, dict):
+            elements = mod_data.get("management_module_element", [])
+            if elements:
+                mod = elements[0]
+        _total_mem = mod.get("total_memory_in_bytes", 0)
+        _free_mem = mod.get("free_memory_in_bytes", 0)
         return SystemInfo(
             hostname=data.get("name", ""),
-            firmware_version=data.get("firmware_version", ""),
-            serial_number=data.get("serial_number", ""),
-            mac_address=data.get("base_ethernet_address", {}).get("octets", ""),
-            uptime_seconds=data.get("uptime", 0),
-            cpu_percent=data.get("cpu_utilization_15_seconds_percent")
-            or data.get("cpu_utilization", 0),
+            firmware_version=mod.get("firmware_version", data.get("firmware_version", "")),
+            serial_number=mod.get("serial_number", data.get("serial_number", "")),
+            mac_address=mod.get("mac_address", {}).get("octets", "")
+            or data.get("base_ethernet_address", {}).get("octets", ""),
+            uptime_seconds=mod.get("uptime", data.get("uptime", 0)),
+            cpu_percent=mod.get("cpu_utilization_15_seconds_percent")
+            or mod.get("cpu_utilization", 0),
             memory_percent=int(100 - (_free_mem / _total_mem * 100))
             if _total_mem > 0
             else 0,
@@ -323,7 +332,6 @@ class ProCurveApiClient:
                 name=p.get("name") or p["id"],
                 is_port_up=p.get("is_port_up", False),
                 is_port_enabled=p.get("is_port_enabled", True),
-                speed_mbps=_parse_speed(p.get("current_speed_mbps", 0)),
             )
             for p in data.get("port_element", [])
         ]
@@ -337,8 +345,9 @@ class ProCurveApiClient:
         return [
             PortStats(
                 id=s["id"],
-                rx_bytes=s.get("port_rx_bytes", 0),
-                tx_bytes=s.get("port_tx_bytes", 0),
+                rx_bytes=s.get("bytes_rx", 0),
+                tx_bytes=s.get("bytes_tx", 0),
+                speed_mbps=_parse_speed(s.get("port_speed_mbps", 0)),
             )
             for s in data.get("port_statistics_element", [])
         ]

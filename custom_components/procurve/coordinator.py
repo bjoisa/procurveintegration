@@ -79,6 +79,8 @@ class ProCurveCoordinator(DataUpdateCoordinator[ProCurveData]):
         poe_port_ids = {p.id for p in poe_ports_list}
         for port in ports:
             port.is_poe_port = port.id in poe_port_ids
+            if port.id in port_stats:
+                port.speed_mbps = port_stats[port.id].speed_mbps
 
         return ProCurveData(
             system_info=system_info,
