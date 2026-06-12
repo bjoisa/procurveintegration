@@ -54,12 +54,12 @@ class PoePortInfo:
 @dataclass
 class SystemInfo:
     hostname: str = ""
-    firmware_version: str = ""
-    serial_number: str = ""
-    mac_address: str = ""
-    uptime_seconds: int = 0
-    cpu_percent: int = 0
-    memory_percent: int = 0
+    firmware_version: str | None = None
+    serial_number: str | None = None
+    mac_address: str | None = None
+    uptime_seconds: int | None = None
+    cpu_percent: int | None = None
+    memory_percent: int | None = None
     total_poe_watts: float = 0.0
     poe_budget_watts: float = 0.0
 
@@ -276,20 +276,30 @@ class ProCurveApiClient:
             elements = mod_data.get("management_module_element", [])
             if elements:
                 mod = elements[0]
+        _fw = mod.get("firmware_version") or data.get("firmware_version") or None
+        _ser = mod.get("serial_number") or data.get("serial_number") or None
+        _mac = (
+            mod.get("mac_address", {}).get("octets")
+            or data.get("base_ethernet_address", {}).get("octets")
+            or None
+        )
+        _uptime = mod["uptime"] if "uptime" in mod else data.get("uptime")
+        _cpu = None
+        if "cpu_utilization_15_seconds_percent" in mod:
+            _cpu = mod["cpu_utilization_15_seconds_percent"]
+        elif "cpu_utilization" in mod:
+            _cpu = mod["cpu_utilization"]
         _total_mem = mod.get("total_memory_in_bytes", 0)
         _free_mem = mod.get("free_memory_in_bytes", 0)
+        _mem = int(100 - (_free_mem / _total_mem * 100)) if _total_mem > 0 else None
         return SystemInfo(
             hostname=data.get("name", ""),
-            firmware_version=mod.get("firmware_version", data.get("firmware_version", "")),
-            serial_number=mod.get("serial_number", data.get("serial_number", "")),
-            mac_address=mod.get("mac_address", {}).get("octets", "")
-            or data.get("base_ethernet_address", {}).get("octets", ""),
-            uptime_seconds=mod.get("uptime", data.get("uptime", 0)),
-            cpu_percent=mod.get("cpu_utilization_15_seconds_percent")
-            or mod.get("cpu_utilization", 0),
-            memory_percent=int(100 - (_free_mem / _total_mem * 100))
-            if _total_mem > 0
-            else 0,
+            firmware_version=_fw,
+            serial_number=_ser,
+            mac_address=_mac,
+            uptime_seconds=_uptime,
+            cpu_percent=_cpu,
+            memory_percent=_mem,
         )
 
     async def get_system_status(self) -> SystemStatus:
