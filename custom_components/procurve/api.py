@@ -276,6 +276,22 @@ class ProCurveApiClient:
             elements = mod_data.get("management_module_element", [])
             if elements:
                 mod = elements[0]
+        # Fixed-form switches (e.g. 2540) return 404 for /management-module.
+        # Try alternative endpoints that some firmware versions expose.
+        res_data = await self._get("/system/utilization", optional=True)
+        _LOGGER.debug("Raw /system/utilization response: %s", res_data)
+        if res_data is None:
+            res_data = await self._get("/system/resources", optional=True)
+            _LOGGER.debug("Raw /system/resources response: %s", res_data)
+        res = res_data or {}
+        # Unwrap list-style responses from unknown firmware shapes.
+        if res and "cpu_utilization_15_seconds_percent" not in res and "cpu_utilization" not in res:
+            for wrapper_key in ("utilization_element", "resources_element", "system_utilization_element"):
+                elements = res.get(wrapper_key, [])
+                if elements:
+                    res = elements[0]
+                    break
+
         _fw = mod.get("firmware_version") or data.get("firmware_version") or None
         _ser = mod.get("serial_number") or data.get("serial_number") or None
         _mac = (
@@ -289,8 +305,26 @@ class ProCurveApiClient:
             _cpu = mod["cpu_utilization_15_seconds_percent"]
         elif "cpu_utilization" in mod:
             _cpu = mod["cpu_utilization"]
-        _total_mem = mod.get("total_memory_in_bytes", 0)
-        _free_mem = mod.get("free_memory_in_bytes", 0)
+        elif "cpu_utilization_15_seconds_percent" in data:
+            _cpu = data["cpu_utilization_15_seconds_percent"]
+        elif "cpu_utilization" in data:
+            _cpu = data["cpu_utilization"]
+        elif "cpu_utilization_15_seconds_percent" in res:
+            _cpu = res["cpu_utilization_15_seconds_percent"]
+        elif "cpu_utilization" in res:
+            _cpu = res["cpu_utilization"]
+        _total_mem = (
+            mod.get("total_memory_in_bytes")
+            or data.get("total_memory_in_bytes")
+            or res.get("total_memory_in_bytes")
+            or 0
+        )
+        _free_mem = (
+            mod.get("free_memory_in_bytes")
+            or data.get("free_memory_in_bytes")
+            or res.get("free_memory_in_bytes")
+            or 0
+        )
         _mem = int(100 - (_free_mem / _total_mem * 100)) if _total_mem > 0 else None
         return SystemInfo(
             hostname=data.get("name", ""),
