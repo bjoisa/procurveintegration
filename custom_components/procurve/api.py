@@ -267,23 +267,20 @@ class ProCurveApiClient:
 
     async def get_system_info(self) -> SystemInfo:
         data = await self._get("/system")
+        _LOGGER.debug("Raw /system response: %s", data)
+        _total_mem = data.get("total_memory_in_bytes", 0)
+        _free_mem = data.get("free_memory_in_bytes", 0)
         return SystemInfo(
             hostname=data.get("name", ""),
             firmware_version=data.get("firmware_version", ""),
             serial_number=data.get("serial_number", ""),
             mac_address=data.get("base_ethernet_address", {}).get("octets", ""),
             uptime_seconds=data.get("uptime", 0),
-            cpu_percent=data.get("cpu_utilization_15_seconds_percent", 0),
-            memory_percent=int(
-                100
-                - (
-                    data.get("total_memory_in_bytes", 1) > 0
-                    and data.get("free_memory_in_bytes", 0)
-                    / data.get("total_memory_in_bytes", 1)
-                    * 100
-                    or 0
-                )
-            ),
+            cpu_percent=data.get("cpu_utilization_15_seconds_percent")
+            or data.get("cpu_utilization", 0),
+            memory_percent=int(100 - (_free_mem / _total_mem * 100))
+            if _total_mem > 0
+            else 0,
         )
 
     async def get_system_status(self) -> SystemStatus:
@@ -317,10 +314,13 @@ class ProCurveApiClient:
 
     async def get_ports(self) -> list[PortInfo]:
         data = await self._get("/ports")
+        _LOGGER.debug(
+            "Raw /ports sample: %s", data.get("port_element", [{}])[0]
+        )
         return [
             PortInfo(
                 id=p["id"],
-                name=p.get("name", p["id"]),
+                name=p.get("name") or p["id"],
                 is_port_up=p.get("is_port_up", False),
                 is_port_enabled=p.get("is_port_enabled", True),
                 speed_mbps=_parse_speed(p.get("current_speed_mbps", 0)),
@@ -330,6 +330,10 @@ class ProCurveApiClient:
 
     async def get_port_statistics(self) -> list[PortStats]:
         data = await self._get("/port-statistics")
+        _LOGGER.debug(
+            "Raw /port-statistics sample: %s",
+            data.get("port_statistics_element", [{}])[0],
+        )
         return [
             PortStats(
                 id=s["id"],
