@@ -8,11 +8,9 @@ from typing import Any
 
 import aiohttp
 
-from .const import API_PATH
+from .const import API_VERSIONS_PROBE_ORDER, LOGIN_SESSIONS_PATH
 
 _LOGGER = logging.getLogger(__name__)
-
-LOGIN_PATH = "/rest/v7/login-sessions"
 
 
 class CannotConnect(Exception):
@@ -106,6 +104,7 @@ class ProCurveApiClient:
         self._session = session
         self._owns_session = session is None
         self._cookie: str | None = None
+        self._api_version: str | None = None
         self._base_url = f"https://{host}:{port}"
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -120,7 +119,9 @@ class ProCurveApiClient:
             self._session = None
 
     def _url(self, path: str) -> str:
-        return f"{self._base_url}{API_PATH}{path}"
+        if self._api_version is None:
+            raise ApiError("API version not yet detected; call authenticate() first")
+        return f"{self._base_url}/rest/{self._api_version}{path}"
 
     def _headers(self) -> dict[str, str]:
         headers: dict[str, str] = {"Accept": "application/json"}
@@ -129,28 +130,45 @@ class ProCurveApiClient:
         return headers
 
     async def authenticate(self) -> None:
-        """Obtain a session cookie from the switch."""
+        """Probe REST API versions in order and obtain a session cookie."""
         session = await self._get_session()
-        url = f"{self._base_url}{LOGIN_PATH}"
         payload = {"userName": self._username, "password": self._password}
-        try:
-            async with session.post(
-                url,
-                json=payload,
-                headers={"Accept": "application/json"},
-                ssl=self._verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                if resp.status == 401:
-                    raise InvalidAuth("Invalid username or password")
-                if resp.status not in (200, 201):
-                    raise ApiError(f"Login failed with status {resp.status}")
-                data = await resp.json()
-                self._cookie = data.get("cookie", "")
-        except aiohttp.ClientConnectorError as err:
-            raise CannotConnect(f"Cannot reach {self._host}:{self._port}") from err
-        except asyncio.TimeoutError as err:
-            raise CannotConnect(f"Timeout connecting to {self._host}") from err
+        last_statuses: dict[str, int] = {}
+        for version in API_VERSIONS_PROBE_ORDER:
+            url = f"{self._base_url}/rest/{version}{LOGIN_SESSIONS_PATH}"
+            try:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers={"Accept": "application/json"},
+                    ssl=self._verify_ssl,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status == 401:
+                        raise InvalidAuth("Invalid username or password")
+                    if resp.status in (503, 404):
+                        _LOGGER.debug(
+                            "REST API %s not available (HTTP %s), trying next version",
+                            version,
+                            resp.status,
+                        )
+                        last_statuses[version] = resp.status
+                        continue
+                    if resp.status not in (200, 201):
+                        last_statuses[version] = resp.status
+                        continue
+                    data = await resp.json()
+                    self._cookie = data.get("cookie", "")
+                    self._api_version = version
+                    _LOGGER.debug("Using REST API version %s", version)
+                    return
+            except aiohttp.ClientConnectorError as err:
+                raise CannotConnect(f"Cannot reach {self._host}:{self._port}") from err
+            except asyncio.TimeoutError as err:
+                raise CannotConnect(f"Timeout connecting to {self._host}") from err
+        raise ApiError(
+            f"No supported REST API version found on {self._host}. Tried: {last_statuses}"
+        )
 
     async def _get(self, path: str) -> Any:
         """Perform an authenticated GET request, re-authenticating once on 401."""
