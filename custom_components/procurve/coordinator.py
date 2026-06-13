@@ -21,6 +21,7 @@ from .api import (
     ApiError,
 )
 from .const import DOMAIN
+from .snmp import SnmpClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class ProCurveCoordinator(DataUpdateCoordinator[ProCurveData]):
         hass: HomeAssistant,
         client: ProCurveApiClient,
         scan_interval: int,
+        snmp_client: SnmpClient | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -54,6 +56,7 @@ class ProCurveCoordinator(DataUpdateCoordinator[ProCurveData]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
+        self.snmp_client = snmp_client
 
     async def _async_update_data(self) -> ProCurveData:
         try:
@@ -71,6 +74,12 @@ class ProCurveCoordinator(DataUpdateCoordinator[ProCurveData]):
             raise UpdateFailed(f"Cannot connect to switch: {err}") from err
         except ApiError as err:
             raise UpdateFailed(f"API error: {err}") from err
+
+        if self.snmp_client is not None:
+            if system_info.cpu_percent is None:
+                system_info.cpu_percent = await self.snmp_client.get_cpu_percent()
+            if system_info.memory_percent is None:
+                system_info.memory_percent = await self.snmp_client.get_memory_percent()
 
         total_poe, poe_budget = poe_totals
         port_stats = {s.id: s for s in port_stats_list}

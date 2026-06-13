@@ -27,7 +27,9 @@
       "init": {
         "title": "ProCurve-alternativer",
         "data": {
-          "scan_interval": "Pollingsintervall (sekunder)"
+          "scan_interval": "Pollingsintervall (sekunder)",
+          "snmp_community": "SNMP community-streng (la stå tom for å deaktivere)",
+          "snmp_port": "SNMP-port"
         }
       }
     }

@@ -11,14 +11,18 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from .api import CannotConnect, InvalidAuth, ProCurveApiClient
 from .const import (
     CONF_SCAN_INTERVAL,
+    CONF_SNMP_COMMUNITY,
+    CONF_SNMP_PORT,
     CONF_VERIFY_SSL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SNMP_PORT,
     DEFAULT_USERNAME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
 )
 from .coordinator import ProCurveCoordinator
+from .snmp import SnmpClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +58,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    coordinator = ProCurveCoordinator(hass, client, scan_interval)
+
+    snmp_community = data.get(CONF_SNMP_COMMUNITY, "")
+    snmp_client: SnmpClient | None = None
+    if snmp_community:
+        snmp_client = SnmpClient(
+            host=data[CONF_HOST],
+            community=snmp_community,
+            port=data.get(CONF_SNMP_PORT, DEFAULT_SNMP_PORT),
+        )
+
+    coordinator = ProCurveCoordinator(hass, client, scan_interval, snmp_client)
 
     await coordinator.async_config_entry_first_refresh()
 

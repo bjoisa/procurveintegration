@@ -27,7 +27,9 @@
       "init": {
         "title": "ProCurve options",
         "data": {
-          "scan_interval": "Scan interval (seconds)"
+          "scan_interval": "Scan interval (seconds)",
+          "snmp_community": "SNMP community string (leave blank to disable)",
+          "snmp_port": "SNMP port"
         }
       }
     }

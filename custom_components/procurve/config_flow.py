@@ -13,9 +13,12 @@ from homeassistant.data_entry_flow import FlowResult
 from .api import CannotConnect, InvalidAuth, ProCurveApiClient
 from .const import (
     CONF_SCAN_INTERVAL,
+    CONF_SNMP_COMMUNITY,
+    CONF_SNMP_PORT,
     CONF_VERIFY_SSL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SNMP_PORT,
     DEFAULT_USERNAME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
@@ -100,15 +103,25 @@ class ProCurveOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        def _opt(key, default):
+            return self._config_entry.options.get(
+                key, self._config_entry.data.get(key, default)
+            )
+
         schema = vol.Schema(
             {
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
-                    default=self._config_entry.options.get(
-                        CONF_SCAN_INTERVAL,
-                        self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                    ),
+                    default=_opt(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 ): vol.All(int, vol.Range(min=10, max=3600)),
+                vol.Optional(
+                    CONF_SNMP_COMMUNITY,
+                    default=_opt(CONF_SNMP_COMMUNITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_SNMP_PORT,
+                    default=_opt(CONF_SNMP_PORT, DEFAULT_SNMP_PORT),
+                ): vol.All(int, vol.Range(min=1, max=65535)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
